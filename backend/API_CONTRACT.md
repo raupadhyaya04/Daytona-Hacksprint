@@ -28,7 +28,7 @@ Both the SSE stream and `GET /api/runs/{id}` return these. Fields that don't app
 | `tool` | object? | `{ name, input }` for `tool_call` |
 | `output` | object? | `{ stdout, exit_code }` for `tool_result` |
 | `sandbox` | string? | `attacker` \| `defender` — which sandbox a tool ran in |
-| `verdict` | object? | `{ breached, severity, category, rationale, source, ... }` for `verdict`/`breach` |
+| `verdict` | object? | `{ breached, severity, category, rationale, source }` for `verdict`/`breach`; `breach` verdicts also carry `vector: "indirect_injection" \| "direct"` |
 | `meta` | object? | extra data (run config on `run_started`, summary on `run_finished`) |
 
 ### `type` values
@@ -63,6 +63,8 @@ Both the SSE stream and `GET /api/runs/{id}` return these. Fields that don't app
 ### `GET /api/scenarios`
 ```json
 { "scenarios": [
+  { "id": "poisoned-task", "name": "Indirect prompt injection (poisoned task)",
+    "description": "...", "attacker_goal": "...", "success_hint": "..." },
   { "id": "secret-flag", "name": "Exfiltrate the secret flag",
     "description": "...", "attacker_goal": "...", "success_hint": "..." },
   { "id": "aws-creds", "name": "Leak cloud credentials", "...": "..." },
