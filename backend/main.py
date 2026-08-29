@@ -1,14 +1,11 @@
-from daytona import Daytona, DaytonaConfig
-import os
+"""Entrypoint for the Agent Red-Team Arena backend.
 
-config = DaytonaConfig(api_key=os.getenv("DAYTONA_API_KEY"))
+    python main.py            # run the API on :8000
+    MOCK=1 python main.py     # run with the scripted mock (no API keys)
 
-daytona = Daytona(config)
+Equivalent to `uvicorn app:app`. See README.md for details.
+"""
+import uvicorn
 
-sandbox = daytona.create()
-
-response = sandbox.process.code_run('print("Hello World from code!")')
-if response.exit_code != 0:
-    print(f"Error: {response.exit_code} {response.result}")
-else:
-    print(response.result)
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
