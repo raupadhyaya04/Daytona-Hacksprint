@@ -1,0 +1,11 @@
+# Web server
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-dotenv>=1.0
+
+# LLM (Tensorix is OpenAI-compatible; we point the OpenAI SDK at their base URL)
+openai>=1.50
+
+# Daytona sandboxes
+daytona>=0.20
+# If `pip install daytona` cannot find the SDK on your index, try: daytona-sdk

@@ -147,6 +147,9 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# Red-team run logs
+backend/data/
+
 # Environments
 .env
 .envrc
