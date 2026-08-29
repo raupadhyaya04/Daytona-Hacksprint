@@ -1,111 +1,495 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --bg: #0e0f13;
+  --panel: #16181f;
+  --panel-alt: #1c1f28;
+  --border: #2a2d38;
+  --text: #e6e8ee;
+  --text-dim: #9095a3;
+  --attacker: #ef4444;
+  --defender: #3b82f6;
+  --judge: #a78bfa;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --radius: 10px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--text);
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
+.app-shell {
+  max-width: 1200px;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
+  padding: 24px;
+}
+
+.app-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.subtitle {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* ---------- Runs page ---------- */
+
+.runs-page {
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  gap: 24px;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+.scenario-picker {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+.scenario-picker h2,
+.run-history h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+
+.scenario-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
-p {
+
+.scenario-card {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scenario-card.selected {
+  border-color: var(--defender);
+  box-shadow: 0 0 0 1px var(--defender) inset;
+}
+
+.scenario-name {
+  font-weight: 600;
+}
+
+.scenario-description {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.launch-button,
+.arena-toolbar button {
+  background: var(--defender);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.launch-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.run-history {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.run-list {
+  list-style: none;
   margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
+.run-list-item {
+  display: grid;
+  grid-template-columns: 12px 90px 1fr 90px 80px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--panel-alt);
+  cursor: pointer;
+}
+
+.run-list-item:hover {
+  background: #24283a;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.status-dot.status-running {
+  background: var(--warning);
+}
+
+.status-dot.status-completed {
+  background: var(--success);
+}
+
+.status-dot.status-error {
+  background: var(--danger);
+}
+
+.run-outcome.breached {
+  color: var(--danger);
+}
+
+.run-outcome.held {
+  color: var(--success);
+}
+
+.empty-state {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+/* ---------- Arena page ---------- */
+
+.arena-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.arena-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.run-id-label {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin-left: auto;
+}
+
+.connection-status {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.connection-status.status-open {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.connection-status.status-error {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.connection-status.status-closed {
+  color: var(--text-dim);
+}
+
+.arena-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Sandbox panel — the two-node visual */
+
+.sandbox-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+.sandbox-node {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 2px solid var(--border);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.sandbox-node.role-attacker {
+  border-color: var(--attacker);
+}
+
+.sandbox-node.role-defender {
+  border-color: var(--defender);
+}
+
+.sandbox-node.active {
+  box-shadow: 0 0 16px currentColor;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.sandbox-node.role-attacker.active {
+  color: var(--attacker);
+}
+
+.sandbox-node.role-defender.active {
+  color: var(--defender);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.sandbox-role {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.sandbox-state {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.sandbox-link {
+  width: 40px;
+  height: 2px;
+  background: var(--border);
+}
+
+/* Transcript */
+
+.transcript-panel,
+.tool-call-log,
+.breach-summary {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.transcript-panel h3,
+.tool-call-log h3,
+.breach-summary h3 {
+  margin: 0 0 12px;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.transcript-scroll,
+.tool-log-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.message-bubble {
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  max-width: 90%;
+  border: 1px solid var(--border);
+}
+
+.message-bubble.actor-attacker {
+  align-self: flex-start;
+  border-color: var(--attacker);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.message-bubble.actor-defender {
+  align-self: flex-end;
+  border-color: var(--defender);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.message-bubble.actor-judge {
+  align-self: center;
+  border-color: var(--judge);
+  background: rgba(167, 139, 250, 0.08);
+  font-size: 0.85rem;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.actor-label {
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.message-content {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.88rem;
+}
+
+/* Verdict badges */
+
+.verdict-badge {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+
+.verdict-badge.held {
+  color: var(--success);
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.verdict-badge.breached {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.severity-tag {
+  align-self: flex-start;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
   border-radius: 4px;
-  color: var(--text-h);
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.severity-low { background: #4d4520; color: var(--warning); }
+.severity-medium { background: #4d3520; color: #f97316; }
+.severity-high, .severity-critical { background: #4d2020; color: var(--danger); }
+
+.verdict-rationale {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+/* Tool call log */
+
+.tool-entry {
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+}
+
+.tool-entry.sandbox-attacker {
+  border-left-color: var(--attacker);
+}
+
+.tool-entry.sandbox-defender {
+  border-left-color: var(--defender);
+}
+
+.tool-sandbox-tag {
+  display: block;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+
+.tool-command {
+  display: block;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.82rem;
+  color: #f0f0f0;
+}
+
+.tool-output {
+  margin: 4px 0 0;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: #000;
+  padding: 6px 8px;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.exit-code {
+  color: var(--warning);
+}
+
+/* Breach summary */
+
+.breach-summary {
+  margin-top: 8px;
+}
+
+.summary-stats {
+  display: flex;
+  gap: 24px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
 }
