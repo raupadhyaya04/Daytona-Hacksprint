@@ -76,11 +76,6 @@ export default function BenchmarkPage({ onBack }) {
 
   return (
     <div className="benchmark-page">
-      <div className="arena-toolbar">
-        <button onClick={onBack}>&larr; Back to runs</button>
-        <span className="run-id-label">benchmark</span>
-      </div>
-
       {statsError && <p className="error-text">{statsError}</p>}
       {batchError && <p className="error-text">{batchError}</p>}
 
