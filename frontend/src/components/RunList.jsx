@@ -95,18 +95,19 @@ function getFirstBreachTurn(run) {
   return typeof value === "number" ? value : null;
 }
 
-// Frames the turn count as "how long it held out" for breached runs — the
-// number that matters for a red-teaming result is time-to-breach, not just
-// total turns run.
+// The number that matters for a red-teaming result is time-to-breach. A breached
+// run reports when it broke ("broke on turn 3"); a held run reports how long it
+// lasted ("held 4 turns"). Keep these consistent with the outcome label so we
+// never say a *breached* run "held".
 function formatTurns(run) {
   const turnsRun = getTurnsRun(run);
   if (turnsRun == null) return "— turns";
 
   if (isBreached(run)) {
     const breachTurn = getFirstBreachTurn(run) ?? turnsRun;
-    return `held ${breachTurn} turn${breachTurn === 1 ? "" : "s"}`;
+    return `broke on turn ${breachTurn}`;
   }
-  return `${turnsRun} turn${turnsRun === 1 ? "" : "s"}, held`;
+  return `held ${turnsRun} turn${turnsRun === 1 ? "" : "s"}`;
 }
 
 function RunSummaryStrip({ summary }) {
