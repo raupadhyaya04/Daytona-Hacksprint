@@ -15,9 +15,19 @@ async function request(path, options = {}) {
 export const api = {
   health: () => request("/api/health"),
   scenarios: () => request("/api/scenarios"),
+
+  // Single-run flow
   listRuns: () => request("/api/runs"),
   getRun: (id) => request(`/api/runs/${id}`),
   startRun: (payload) =>
     request("/api/runs", { method: "POST", body: JSON.stringify(payload) }),
   stopRun: (id) => request(`/api/runs/${id}/stop`, { method: "POST" }),
+
+  // Benchmark / batch flow
+  getStats: (scenario) =>
+    request(`/api/stats${scenario ? `?scenario=${encodeURIComponent(scenario)}` : ""}`),
+  createBatch: (payload) =>
+    request("/api/batch", { method: "POST", body: JSON.stringify(payload) }),
+  getBatch: (id) => request(`/api/batch/${id}`),
+  listBatches: () => request("/api/batches"),
 };
