@@ -28,6 +28,7 @@ class Sandbox(Protocol):
     role: str
 
     def exec(self, command: str) -> ExecResult: ...
+    def write_file(self, path: str, content: str) -> None: ...
     def close(self) -> None: ...
 
 
@@ -61,6 +62,9 @@ class DaytonaSandbox:
             artifacts = getattr(resp, "artifacts", None)
             stdout = getattr(artifacts, "stdout", "") if artifacts else ""
         return ExecResult(exit_code=getattr(resp, "exit_code", 0) or 0, stdout=stdout or "")
+
+    def write_file(self, path: str, content: str) -> None:
+        _plant_file(self, path, content)
 
     def close(self) -> None:
         try:
@@ -177,6 +181,9 @@ class MockSandbox:
 
         # Unknown-but-harmless: pretend it ran.
         return ExecResult(0, "")
+
+    def write_file(self, path: str, content: str) -> None:
+        self._fs[self._norm(path)] = content
 
     def close(self) -> None:
         return None
