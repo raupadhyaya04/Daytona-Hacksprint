@@ -47,6 +47,12 @@ class Settings:
     run_timeout_sec: int = field(default_factory=lambda: _int("RUN_TIMEOUT_SEC", 300))
     sandbox_exec_timeout: int = field(default_factory=lambda: _int("SANDBOX_EXEC_TIMEOUT", 30))
 
+    # Max runs provisioning sandboxes at once (single runs + batch cells share this).
+    max_concurrent_runs: int = field(default_factory=lambda: _int("MAX_CONCURRENT_RUNS", 2))
+    heartbeat_sec: int = field(default_factory=lambda: _int("HEARTBEAT_SEC", 15))
+    # Upper bound on total runs a single batch can spawn (safety cap on Daytona cost).
+    batch_max_runs: int = field(default_factory=lambda: _int("BATCH_MAX_RUNS", 24))
+
     data_dir: Path = field(default_factory=lambda: Path(os.getenv("DATA_DIR", "./data")).resolve())
     cors_origins: str = field(default_factory=lambda: os.getenv("CORS_ORIGINS", "*").strip())
 

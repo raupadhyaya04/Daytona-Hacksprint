@@ -27,6 +27,8 @@ from config import settings
 #   error          - terminal failure (content = message)
 
 TERMINAL_TYPES = {"run_finished", "error"}
+TERMINAL_STATUSES = {"completed", "failed", "stopped"}
+HEARTBEAT_TYPE = "__heartbeat__"   # internal sentinel; rendered as an SSE comment
 
 
 def now_iso() -> str:
@@ -108,6 +110,9 @@ class RunStore:
     def list(self) -> list[dict]:
         return [r.public() for r in sorted(self._runs.values(), key=lambda r: r.created_at, reverse=True)]
 
+    def records(self) -> list[RunRecord]:
+        return list(self._runs.values())
+
     def stop_flag(self, run_id: str) -> Optional[asyncio.Event]:
         return self._stops.get(run_id)
 
@@ -143,10 +148,12 @@ class RunStore:
         return event
 
     async def subscribe(self, run_id: str) -> AsyncIterator[dict]:
-        """Yield the full history, then live events, until a terminal event."""
+        """Yield the full history, then live events (with periodic heartbeats),
+        until a terminal event or a terminal run status."""
         rec = self._runs.get(run_id)
         if rec is None:
             return
+        self.ensure_events(run_id)
         q: asyncio.Queue = asyncio.Queue(maxsize=1000)
         self._subscribers.setdefault(run_id, set()).add(q)
         try:
@@ -157,8 +164,15 @@ class RunStore:
                 yield d
                 if d["type"] in TERMINAL_TYPES:
                     return
+            # A reloaded/finished run has no live task feeding the queue — don't hang.
+            if rec.status in TERMINAL_STATUSES:
+                return
             while True:
-                d = await q.get()
+                try:
+                    d = await asyncio.wait_for(q.get(), timeout=settings.heartbeat_sec)
+                except asyncio.TimeoutError:
+                    yield {"type": HEARTBEAT_TYPE}
+                    continue
                 if d["seq"] <= last_seq:
                     continue
                 last_seq = d["seq"]
@@ -167,6 +181,55 @@ class RunStore:
                     return
         finally:
             self._subscribers.get(run_id, set()).discard(q)
+
+    def ensure_events(self, run_id: str) -> None:
+        """Lazily hydrate a run's events from its JSONL file (for reloaded runs)."""
+        rec = self._runs.get(run_id)
+        if rec is None or rec.events:
+            return
+        path = self._dir / f"{run_id}.jsonl"
+        if not path.exists():
+            return
+        events: list[dict] = []
+        try:
+            for line in path.read_text().splitlines():
+                line = line.strip()
+                if line:
+                    events.append(json.loads(line))
+        except (OSError, json.JSONDecodeError):
+            return
+        rec.events = events
+
+    def load_from_disk(self) -> int:
+        """Rebuild the in-memory registry from persisted run metadata so history and
+        stats survive restarts. Events hydrate lazily; runs left mid-flight by a
+        previous crash are marked failed."""
+        count = 0
+        for meta_path in sorted(self._dir.glob("*.meta.json")):
+            try:
+                d = json.loads(meta_path.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            run_id = d.get("run_id")
+            if not run_id or run_id in self._runs:
+                continue
+            status = d.get("status", "failed")
+            if status in ("provisioning", "running"):
+                status = "failed"   # its orchestrator task died with the old process
+            rec = RunRecord(
+                run_id=run_id,
+                status=status,
+                created_at=d.get("created_at", now_iso()),
+                finished_at=d.get("finished_at"),
+                config=d.get("config", {}) or {},
+                sandboxes=d.get("sandboxes", {}) or {},
+                summary=d.get("summary", {}) or {},
+            )
+            self._runs[run_id] = rec
+            self._subscribers.setdefault(run_id, set())
+            self._stops.setdefault(run_id, asyncio.Event())
+            count += 1
+        return count
 
     # ── persistence ─────────────────────────────────────────────────
     def _persist_event(self, run_id: str, d: dict) -> None:
