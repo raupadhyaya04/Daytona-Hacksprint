@@ -17,6 +17,7 @@ export function useRunEvents(runId) {
 
     const es = new EventSource(`${API_BASE}/api/runs/${runId}/events`);
     esRef.current = es;
+    let finished = false; // set once the run reaches a terminal event
 
     es.onopen = () => setStatus("open");
 
@@ -29,7 +30,11 @@ export function useRunEvents(runId) {
           return [...prev, evt];
         });
         if (evt.type === "run_finished" || evt.type === "error") {
+          finished = true;
           setStatus("closed");
+          // The run is done — close the stream ourselves so the browser doesn't
+          // auto-reconnect (which would replay the whole run and close again).
+          es.close();
         }
       } catch (err) {
         console.error("Bad event payload", raw.data, err);
@@ -37,7 +42,10 @@ export function useRunEvents(runId) {
     };
 
     es.onerror = () => {
-      setStatus("error");
+      // The backend closes the stream right after the terminal event, which
+      // surfaces here as an error — that's a normal finish, not a failure. Only
+      // flag an actual error if the run hadn't already finished.
+      if (!finished) setStatus("error");
     };
 
     return () => {
