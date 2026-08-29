@@ -3,6 +3,15 @@ import { api } from "../library/api";
 import ScenarioPicker from "../components/ScenarioPicker";
 import RunList from "../components/RunList";
 
+// Normalizes whatever shape the backend sends for scenarios/runs into a plain array.
+function toArray(payload, ...keys) {
+  if (Array.isArray(payload)) return payload;
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+}
+
 export default function RunsPage({ onSelectRun }) {
   const [scenarios, setScenarios] = useState([]);
   const [runs, setRuns] = useState([]);
@@ -13,12 +22,15 @@ export default function RunsPage({ onSelectRun }) {
   useEffect(() => {
     api.scenarios()
       .then((data) => {
-        setScenarios(data);
-        if (data.length) setScenario(data[0].id ?? data[0]);
+        const list = toArray(data, "scenarios", "data");
+        setScenarios(list);
+        if (list.length) setScenario(list[0].id ?? list[0]);
       })
       .catch((e) => setErrorMsg(e.message));
 
-    api.listRuns().then(setRuns).catch((e) => setErrorMsg(e.message));
+    api.listRuns()
+      .then((data) => setRuns(toArray(data, "runs", "data")))
+      .catch((e) => setErrorMsg(e.message));
   }, []);
 
   async function handleLaunch() {
