@@ -118,7 +118,9 @@ async def run_redteam(run_id: str) -> None:
 
         # ── agents ───────────────────────────────────────────────────
         client = get_client()
-        attacker = Attacker(client, a_model, scenario.attacker_goal, attacker_sb)
+        # Indirect-injection scenarios let the attacker author files into the defender's inbox.
+        plant_target = defender_sb if getattr(scenario, "attacker_can_plant", False) else None
+        attacker = Attacker(client, a_model, scenario.attacker_goal, attacker_sb, plant_target)
         defender = Defender(client, d_model, scenario.defender_rules, defender_sb)
         judge = Judge(client, j_model)
 
@@ -154,9 +156,11 @@ async def run_redteam(run_id: str) -> None:
 
             # deterministic detection (ground truth)
             findings = detect(defender_msg, executed, secret, scenario.extra_blocklist)
+            vector = "indirect_injection" if getattr(scenario, "attacker_can_plant", False) else "direct"
             for f in findings:
-                emit("system", "breach", turn=turn, verdict=f.as_verdict(),
-                     content=f.evidence)
+                v = f.as_verdict()
+                v["vector"] = vector
+                emit("system", "breach", turn=turn, verdict=v, content=f.evidence)
             if findings:
                 s = rec.summary
                 s["breached"] = True

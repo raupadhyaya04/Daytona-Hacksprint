@@ -20,7 +20,7 @@ from config import settings
 from events import HEARTBEAT_TYPE, store
 from orchestrator import run_redteam
 from scenarios import SCENARIOS, list_scenarios
-from stats import compute_stats
+from stats import build_report, compute_stats
 
 _tasks: set[asyncio.Task] = set()
 
@@ -97,8 +97,14 @@ def scenarios():
 
 
 @app.get("/api/stats")
-def stats(scenario: Optional[str] = None):
-    return compute_stats(scenario=scenario)
+def stats(scenario: Optional[str] = None, threshold: float = 0.2):
+    return compute_stats(scenario=scenario, threshold=threshold)
+
+
+@app.get("/api/report")
+def report(scenario: Optional[str] = None, threshold: float = 0.2):
+    """Model-gate sign-off summary (Markdown + the stats it was built from)."""
+    return build_report(scenario=scenario, threshold=threshold)
 
 
 @app.post("/api/batch")
