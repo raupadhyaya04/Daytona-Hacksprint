@@ -78,7 +78,11 @@ cd backend
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 MOCK=1 python main.py            # http://localhost:8000  (/docs for Swagger)
-python seed_demo.py              # (optional) populate a demo leaderboard + sign-off report
+```
+Optional — with the backend running, in **another terminal**, populate a demo leaderboard:
+```bash
+cd backend && source .venv/bin/activate
+python seed_demo.py              # POSTs a demo batch to the running server (no restart needed)
 ```
 
 **Frontend:**
