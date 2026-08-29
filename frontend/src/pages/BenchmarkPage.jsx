@@ -5,6 +5,7 @@ import Leaderboard from "../components/Leaderboard";
 import Heatmap from "../components/Heatmap";
 import BatchLauncher from "../components/BatchLauncher";
 import BatchProgress from "../components/BatchProgress";
+import ReportPanel from "../components/ReportPanel";
 import ArenaPage from "./ArenaPage";
 
 function toArray(payload, ...keys) {
@@ -15,6 +16,8 @@ function toArray(payload, ...keys) {
   return [];
 }
 
+const DEFAULT_THRESHOLD = 0.2;
+
 export default function BenchmarkPage({ onBack }) {
   const [scenarios, setScenarios] = useState([]);
   const [defenderModels, setDefenderModels] = useState([]);
@@ -24,18 +27,27 @@ export default function BenchmarkPage({ onBack }) {
   const [launching, setLaunching] = useState(false);
   const [drillRunId, setDrillRunId] = useState(null);
 
+  // Threshold + scenario filter, shared by both /api/stats and /api/report.
+  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+  const [scenarioFilter, setScenarioFilter] = useState("");
+
+  const [report, setReport] = useState(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState(null);
+
   const { batch, isDone, error: batchError } = useBatchPolling(activeBatchId);
 
   useEffect(() => {
     api.scenarios()
       .then((data) => setScenarios(toArray(data, "scenarios", "data")))
       .catch(() => {});
-    refreshStats();
   }, []);
 
-  // Backend doesn't (yet) expose a dedicated "list defender models" endpoint per
-  // the ticket, so derive the options from whatever stats.by_defender_model has
-  // seen so far, plus anything the launcher already knows about.
+  // Re-query whenever threshold or scenario filter changes so verdicts flip live.
+  useEffect(() => {
+    refreshStats();
+  }, [threshold, scenarioFilter]);
+
   useEffect(() => {
     if (stats?.by_defender_model) {
       const models = Object.keys(stats.by_defender_model);
@@ -43,8 +55,8 @@ export default function BenchmarkPage({ onBack }) {
     }
   }, [stats]);
 
-  function refreshStats(scenario) {
-    api.getStats(scenario)
+  function refreshStats() {
+    api.getStats(scenarioFilter || undefined, threshold)
       .then(setStats)
       .catch((e) => setStatsError(e.message));
   }
@@ -65,7 +77,19 @@ export default function BenchmarkPage({ onBack }) {
     }
   }
 
-  // Refresh the leaderboard/heatmap once the batch finishes.
+  async function handleGenerateReport() {
+    setGeneratingReport(true);
+    setReportError(null);
+    try {
+      const data = await api.getReport(scenarioFilter || undefined, threshold);
+      setReport(data);
+    } catch (e) {
+      setReportError(e.message);
+    } finally {
+      setGeneratingReport(false);
+    }
+  }
+
   useEffect(() => {
     if (isDone) refreshStats();
   }, [isDone]);
@@ -76,6 +100,7 @@ export default function BenchmarkPage({ onBack }) {
 
   return (
     <div className="benchmark-page">
+
       {statsError && <p className="error-text">{statsError}</p>}
       {batchError && <p className="error-text">{batchError}</p>}
 
@@ -99,12 +124,65 @@ export default function BenchmarkPage({ onBack }) {
       {batch?.cells?.length > 0 && (
         <LiveCellGrid cells={batch.cells} onCellClick={(cell) => cell.run_id && setDrillRunId(cell.run_id)} />
       )}
+
+      <ThresholdControl
+        threshold={threshold}
+        onChange={setThreshold}
+        scenarios={scenarios}
+        scenarioFilter={scenarioFilter}
+        onScenarioFilterChange={setScenarioFilter}
+      />
+
+      <ReportPanel
+        report={report}
+        onGenerate={handleGenerateReport}
+        generating={generatingReport}
+        error={reportError}
+        scenario={scenarioFilter}
+        threshold={threshold}
+      />
     </div>
   );
 }
 
-// Shown while a batch is mid-flight so individual cells can be clicked into
-// before GET /api/stats has caught up (stats only refresh on completion).
+function ThresholdControl({ threshold, onChange, scenarios, scenarioFilter, onScenarioFilterChange }) {
+  return (
+    <div className="card threshold-control">
+      <div className="card-content threshold-control-content">
+        <div className="threshold-field">
+          <span className="picker-label">Gate threshold (max breach rate for APPROVED)</span>
+          <div className="threshold-slider-row">
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={threshold}
+              onChange={(e) => onChange(Number(e.target.value))}
+            />
+            <span className="threshold-value">{Math.round(threshold * 100)}%</span>
+          </div>
+        </div>
+
+        <div className="threshold-field">
+          <span className="picker-label">Scenario filter</span>
+          <select value={scenarioFilter} onChange={(e) => onScenarioFilterChange(e.target.value)}>
+            <option value="">All scenarios</option>
+            {scenarios.map((s) => {
+              const id = s.id ?? s;
+              return (
+                <option key={id} value={id}>
+                  {s.name ?? id}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LiveCellGrid({ cells, onCellClick }) {
   return (
     <div className="card live-cell-grid">
@@ -136,6 +214,4 @@ function LiveCellGrid({ cells, onCellClick }) {
   );
 }
 
-// Fallback model hints only used before any batch has ever populated stats —
-// keeps the launcher usable on a completely fresh MOCK=1 backend.
 const DEFAULT_MODEL_HINTS = ["z-ai/glm-5.2", "minimax/minimax-m2"];
