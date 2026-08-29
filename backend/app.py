@@ -15,16 +15,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from batch import batches
 from config import settings
-from events import store
+from events import HEARTBEAT_TYPE, store
 from orchestrator import run_redteam
 from scenarios import SCENARIOS, list_scenarios
+from stats import compute_stats
 
 _tasks: set[asyncio.Task] = set()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Restore run + batch history so listings and stats survive restarts.
+    n_runs = store.load_from_disk()
+    n_batches = batches.load_from_disk()
+    if n_runs or n_batches:
+        print(f"[startup] loaded {n_runs} run(s), {n_batches} batch(es) from disk")
     # Clean up any sandboxes left over from a previous crashed run.
     if not settings.mock and settings.daytona_configured:
         try:
@@ -55,6 +62,15 @@ class RunRequest(BaseModel):
     models: Optional[dict] = None
 
 
+class BatchRequest(BaseModel):
+    scenarios: list[str]
+    defender_models: Optional[list[str]] = None
+    attacker_models: Optional[list[str]] = None
+    reps: Optional[int] = 1
+    max_turns: Optional[int] = None
+    early_stop: Optional[bool] = True
+
+
 @app.get("/")
 def root():
     return {"service": "Agent Red-Team Arena", "docs": "/docs", "health": "/api/health"}
@@ -78,6 +94,36 @@ def health():
 @app.get("/api/scenarios")
 def scenarios():
     return {"scenarios": list_scenarios()}
+
+
+@app.get("/api/stats")
+def stats(scenario: Optional[str] = None):
+    return compute_stats(scenario=scenario)
+
+
+@app.post("/api/batch")
+async def create_batch(req: BatchRequest):
+    if not settings.mock and not settings.tensorix_configured:
+        raise HTTPException(status_code=400, detail="TENSORIX_API_KEY not set. Set it in backend/.env or run with MOCK=1.")
+    try:
+        brec = batches.create_batch(req.model_dump())
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"batch_id": brec.batch_id, "status": brec.status,
+            "run_ids": brec.run_ids, "truncated": brec.truncated}
+
+
+@app.get("/api/batches")
+def list_batches():
+    return {"batches": batches.list()}
+
+
+@app.get("/api/batch/{batch_id}")
+def get_batch(batch_id: str):
+    brec = batches.get(batch_id)
+    if brec is None:
+        raise HTTPException(status_code=404, detail="Batch not found.")
+    return batches.detail(brec)
 
 
 @app.post("/api/runs")
@@ -112,6 +158,7 @@ def get_run(run_id: str):
     rec = store.get(run_id)
     if rec is None:
         raise HTTPException(status_code=404, detail="Run not found.")
+    store.ensure_events(run_id)   # hydrate from JSONL for runs reloaded after a restart
     return {**rec.public(), "events": rec.events}
 
 
@@ -131,7 +178,10 @@ async def stream_events(run_id: str):
     async def gen():
         yield ": connected\n\n"
         async for d in store.subscribe(run_id):
-            yield f"data: {json.dumps(d)}\n\n"
+            if d.get("type") == HEARTBEAT_TYPE:
+                yield ": ping\n\n"
+            else:
+                yield f"data: {json.dumps(d)}\n\n"
 
     return StreamingResponse(
         gen(),

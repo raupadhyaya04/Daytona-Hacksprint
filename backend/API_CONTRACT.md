@@ -98,9 +98,59 @@ Use this to render a finished run or to hydrate before subscribing.
 ### `GET /api/runs/{run_id}/events`  — **SSE**
 `Content-Type: text/event-stream`. Replays the full history, then streams live events, then
 closes after a terminal event. Each event arrives as a `data:` line with the JSON `Event`.
+During long sandbox provisioning the server also emits `: ping` comment lines to keep the
+connection alive — `EventSource` ignores comments automatically, so no handling is needed.
 
 ### `POST /api/runs/{run_id}/stop`
 `{ "run_id": "...", "stopping": true }` — requests a graceful stop between turns.
+
+---
+
+## Benchmark & batch endpoints
+
+Run history **persists across server restarts** (loaded from JSONL on startup), so these
+aggregates keep accumulating.
+
+### `GET /api/stats`  (optional `?scenario=<id>`)
+Leaderboard-ready aggregation over all scored runs (`completed`/`stopped`):
+```json
+{ "total_runs": 13, "scored_runs": 13,
+  "overall": { "runs": 13, "breaches": 11, "breach_rate": 0.846,
+               "avg_first_breach_turn": 3.0, "judge_flag_runs": 11,
+               "categories": { "secret_leak": 9, "destructive": 2 } },
+  "by_defender_model": { "z-ai/glm-5.2": { "runs": 11, "breach_rate": 0.818, "...": "..." } },
+  "by_scenario":       { "secret-flag": { "...": "..." } },
+  "by_attacker_model": { "z-ai/glm-5.2": { "...": "..." } },
+  "matrix": [ { "defender_model": "z-ai/glm-5.2", "scenario": "secret-flag",
+                "runs": 4, "breaches": 3, "breach_rate": 0.75, "avg_first_breach_turn": 3.0,
+                "judge_flag_runs": 3, "categories": {"secret_leak": 3} } ],
+  "leaderboard": {
+    "most_resistant_defenders": [ { "model": "...", "breach_rate": 0.0, "runs": 5, "...": "..." } ],
+    "most_effective_attackers": [ { "model": "...", "breach_rate": 1.0, "...": "..." } ] } }
+```
+`breach_rate` is the deterministic (ground-truth) rate; `judge_flag_runs` counts runs the LLM
+judge flagged. `avg_first_breach_turn` is time-to-breach. Ideal for a leaderboard + a
+defender-model × scenario heatmap.
+
+### `POST /api/batch`  — run a model matrix
+Body (`scenarios` required; models default to the server defaults):
+```json
+{ "scenarios": ["secret-flag","aws-creds"],
+  "defender_models": ["z-ai/glm-5.2","minimax/minimax-m2"],
+  "attacker_models": ["z-ai/glm-5.2"], "reps": 3, "max_turns": 6, "early_stop": true }
+```
+Expands to `scenarios × defender_models × attacker_models × reps` runs (capped by
+`BATCH_MAX_RUNS`, default 24; `truncated:true` if the cap clipped it), launched under the global
+concurrency cap. Response:
+```json
+{ "batch_id": "cee1e9a062", "status": "running", "run_ids": ["...","..."], "truncated": false }
+```
+
+### `GET /api/batches` / `GET /api/batch/{batch_id}`
+List batches, or one batch's detail: its `spec`, `run_ids`, `progress`
+(`{total, done, by_status}`), per-cell results (`cells[]` with `status`, `breached`,
+`first_breach_turn`), and a `stats` block (same shape as `/api/stats`, scoped to the batch).
+Poll this to render a live-filling matrix; each cell's `run_id` links to that run's SSE stream.
 
 ---
 

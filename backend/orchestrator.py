@@ -24,6 +24,21 @@ def _make_emit(run_id: str):
     return emit
 
 
+_run_semaphore = None
+_sem_loop = None
+
+
+def _get_semaphore() -> asyncio.Semaphore:
+    """Global cap on concurrent sandbox-holding runs, rebound if the loop changes
+    (so it works across separate asyncio.run() calls in tests)."""
+    global _run_semaphore, _sem_loop
+    loop = asyncio.get_running_loop()
+    if _run_semaphore is None or _sem_loop is not loop:
+        _run_semaphore = asyncio.Semaphore(max(1, settings.max_concurrent_runs))
+        _sem_loop = loop
+    return _run_semaphore
+
+
 async def run_redteam(run_id: str) -> None:
     rec = store.get(run_id)
     if rec is None:
@@ -40,10 +55,14 @@ async def run_redteam(run_id: str) -> None:
     a_model = models.get("attacker", settings.attacker_model)
     d_model = models.get("defender", settings.defender_model)
     j_model = models.get("judge", settings.judge_model)
+    # Persist resolved models so the benchmark aggregator can read them off the record.
+    rec.config["resolved_models"] = {"attacker": a_model, "defender": d_model, "judge": j_model}
 
     secret = new_secret()
     sandboxes: list[Sandbox] = []
     torn_down = False
+    sem_held = False
+    sem = _get_semaphore()
 
     def teardown() -> None:
         nonlocal torn_down
@@ -64,6 +83,12 @@ async def run_redteam(run_id: str) -> None:
             "models": {"attacker": a_model, "defender": d_model, "judge": j_model},
             "mock": settings.mock,
         })
+
+        # Global concurrency cap so single runs + batch cells don't exceed Daytona limits.
+        if sem.locked():
+            emit("system", "status", content="Queued — waiting for an available run slot…")
+        await sem.acquire()
+        sem_held = True
 
         # ── provision ────────────────────────────────────────────────
         emit("system", "status", content="Provisioning defender sandbox…")
@@ -111,13 +136,18 @@ async def run_redteam(run_id: str) -> None:
                 emit("system", "status", content="Run wall-clock timeout reached.", turn=turn)
                 break
 
-            # attacker speaks
-            attacker_msg = await attacker.next_message(transcript, turn, emit)
-            emit("attacker", "message", turn=turn, content=attacker_msg)
+            try:
+                # attacker speaks
+                attacker_msg = await attacker.next_message(transcript, turn, emit)
+                emit("attacker", "message", turn=turn, content=attacker_msg)
 
-            # defender responds (may execute commands in its sandbox)
-            defender_msg, executed = await defender.respond(transcript, attacker_msg, turn, emit)
-            emit("defender", "message", turn=turn, content=defender_msg)
+                # defender responds (may execute commands in its sandbox)
+                defender_msg, executed = await defender.respond(transcript, attacker_msg, turn, emit)
+                emit("defender", "message", turn=turn, content=defender_msg)
+            except Exception as e:  # noqa: BLE001 - one bad model/tool call ends the run cleanly
+                emit("system", "status", turn=turn,
+                     content=f"Turn {turn} aborted ({type(e).__name__}: {e}); ending run.")
+                break
 
             transcript.append({"speaker": "attacker", "content": attacker_msg})
             transcript.append({"speaker": "defender", "content": defender_msg})
@@ -137,10 +167,13 @@ async def run_redteam(run_id: str) -> None:
                     if f.category not in s["categories"]:
                         s["categories"].append(f.category)
 
-            # judge (softer policy read)
-            verdict = await judge.evaluate(attacker_msg, defender_msg, executed, turn, emit)
-            if verdict.get("breached"):
-                rec.summary["judge_flags"] = rec.summary.get("judge_flags", 0) + 1
+            # judge (softer policy read) — never let a judge failure kill the run
+            try:
+                verdict = await judge.evaluate(attacker_msg, defender_msg, executed, turn, emit)
+                if verdict.get("breached"):
+                    rec.summary["judge_flags"] = rec.summary.get("judge_flags", 0) + 1
+            except Exception:  # noqa: BLE001
+                pass
 
             rec.summary["turns_run"] = turn
             store._persist_meta(rec)
@@ -167,3 +200,5 @@ async def run_redteam(run_id: str) -> None:
         emit("system", "error", content=f"Run failed: {e}")
     finally:
         teardown()
+        if sem_held:
+            sem.release()
