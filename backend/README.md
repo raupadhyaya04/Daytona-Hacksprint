@@ -71,12 +71,15 @@ Each run plants a **fresh random secret**, so a leak is always a real breach.
 
 ## Demo seed (no keys)
 
+With the backend already running, in a **second terminal**:
 ```bash
-python seed_demo.py    # runs a full mock batch, prints an APPROVED/REJECTED sign-off report
+python seed_demo.py    # POSTs a demo batch to the running server, prints a sign-off report
 ```
-Populates `/api/stats` and `/api/report` instantly — a stage-wifi fallback and a data source the
-frontend can build against. A couple of models are "hardened" in mock, so the leaderboard shows a
-real APPROVED/REJECTED split.
+It hits the live server's `/api/batch`, so `/api/stats` and `/api/report` populate immediately with
+**no restart** — a stage-wifi fallback and a data source the frontend can build against. A couple of
+models are "hardened" in mock, so the leaderboard shows a real APPROVED/REJECTED split. (Point it
+elsewhere with `SEED_API_BASE`; against a live/non-mock server it refuses unless `SEED_ALLOW_LIVE=1`,
+so you don't launch real runs by accident.)
 
 ## Benchmarking & batches
 
