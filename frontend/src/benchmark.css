@@ -562,3 +562,163 @@
 .show-all-link:hover {
   text-decoration: underline;
 }
+
+/* ============================================================
+   Verdict pill (APPROVED / REJECTED gate decision) — leaderboard
+   ============================================================ */
+.verdict-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.verdict-approved {
+  background: var(--success-muted);
+  color: var(--success);
+  border-color: rgba(74, 222, 128, 0.35);
+}
+
+.verdict-rejected {
+  background: var(--danger-muted);
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.verdict-no-data {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+}
+
+/* ============================================================
+   Attack vector tag — VerdictBadge
+   ============================================================ */
+.verdict-badge-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vector-tag {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.vector-indirect_injection {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warning);
+}
+
+.vector-direct {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* ============================================================
+   plant_artifact tool call — distinct treatment in ToolCallLog
+   ============================================================ */
+.tool-entry.plant-artifact {
+  border-left-color: var(--warning);
+}
+
+.plant-artifact-command {
+  background: rgba(251, 191, 36, 0.1) !important;
+  color: var(--warning) !important;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Threshold + scenario filter control
+   ============================================================ */
+.threshold-control-content {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.threshold-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 220px;
+}
+
+.threshold-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.threshold-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--defender);
+}
+
+.threshold-value {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  min-width: 42px;
+  text-align: right;
+}
+
+.threshold-field select {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-size: 0.8125rem;
+}
+
+/* ============================================================
+   Sign-off report panel
+   ============================================================ */
+.report-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.report-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.report-meta {
+  display: flex;
+  gap: 18px;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-markdown {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--foreground);
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 60vh;
+  overflow-y: auto;
+}

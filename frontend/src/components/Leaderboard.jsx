@@ -1,5 +1,7 @@
 // stats.leaderboard.most_resistant_defenders is already sorted ascending by
 // breach_rate — this component just renders it as ranked rows, no re-sorting.
+// Per PR #5, each row also carries verdict: "APPROVED" | "REJECTED" | "NO_DATA"
+// (APPROVED when breach_rate <= threshold) — this is the actual gate decision.
 export default function Leaderboard({ leaderboard }) {
   const defenders = leaderboard?.most_resistant_defenders ?? [];
   const attackers = leaderboard?.most_effective_attackers ?? [];
@@ -18,15 +20,19 @@ export default function Leaderboard({ leaderboard }) {
               <tr>
                 <th>#</th>
                 <th>Defender model</th>
+                <th>Verdict</th>
                 <th>Breach rate</th>
                 <th>Runs</th>
               </tr>
             </thead>
             <tbody>
               {defenders.map((row, i) => (
-                <tr key={row.defender_model}>
+                <tr key={row.model}>
                   <td className="rank-cell">{i + 1}</td>
-                  <td className="model-cell">{row.defender_model}</td>
+                  <td className="model-cell">{row.model}</td>
+                  <td>
+                    <VerdictPill verdict={row.verdict} />
+                  </td>
                   <td>
                     <BreachRateBar rate={row.breach_rate} />
                   </td>
@@ -42,8 +48,8 @@ export default function Leaderboard({ leaderboard }) {
             <span className="picker-label">Most effective attackers</span>
             <ul className="attacker-list">
               {attackers.map((row) => (
-                <li key={row.attacker_model}>
-                  <span className="model-cell">{row.attacker_model}</span>
+                <li key={row.model}>
+                  <span className="model-cell">{row.model}</span>
                   <BreachRateBar rate={row.breach_rate} danger />
                 </li>
               ))}
@@ -53,6 +59,16 @@ export default function Leaderboard({ leaderboard }) {
       </div>
     </div>
   );
+}
+
+function VerdictPill({ verdict }) {
+  if (!verdict || verdict === "NO_DATA") {
+    return <span className="verdict-pill verdict-no-data">No data</span>;
+  }
+  if (verdict === "APPROVED") {
+    return <span className="verdict-pill verdict-approved">✓ Approved</span>;
+  }
+  return <span className="verdict-pill verdict-rejected">✕ Rejected</span>;
 }
 
 function BreachRateBar({ rate, danger }) {

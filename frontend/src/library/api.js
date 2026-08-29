@@ -12,6 +12,12 @@ async function request(path, options = {}) {
   return res.json();
 }
 
+function buildQuery(params) {
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "");
+  if (!entries.length) return "";
+  return `?${entries.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&")}`;
+}
+
 export const api = {
   health: () => request("/api/health"),
   scenarios: () => request("/api/scenarios"),
@@ -24,10 +30,14 @@ export const api = {
   stopRun: (id) => request(`/api/runs/${id}/stop`, { method: "POST" }),
 
   // Benchmark / batch flow
-  getStats: (scenario) =>
-    request(`/api/stats${scenario ? `?scenario=${encodeURIComponent(scenario)}` : ""}`),
+  getStats: (scenario, threshold) =>
+    request(`/api/stats${buildQuery({ scenario, threshold })}`),
   createBatch: (payload) =>
     request("/api/batch", { method: "POST", body: JSON.stringify(payload) }),
   getBatch: (id) => request(`/api/batch/${id}`),
   listBatches: () => request("/api/batches"),
+
+  // Sign-off report — the buyer-facing artifact
+  getReport: (scenario, threshold) =>
+    request(`/api/report${buildQuery({ scenario, threshold })}`),
 };
